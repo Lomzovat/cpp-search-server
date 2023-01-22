@@ -61,19 +61,15 @@ public:
 
     void AddDocument(int document_id, const string& document) {
         const vector<string> words = SplitIntoWordsNoStop(document);
-
-        map<string, size_t> counter;
+        const double word_count = 1.0 / words.size();
         for (const string& word : words) {
             if (!stop_words_.count(word)) {
-                ++counter[word];
+
+                word_to_documents_freqs_[word][document_id] += word_count;
             }
         }
-
-        for (const auto& [word, count] : counter) {
-            word_to_documents_freqs_[word][document_id] = (double)count / words.size();
-        }
-
         ++documents_count_;
+
     }
 
     vector<Document> FindTopDocuments(const string& raw_query) const {
@@ -91,10 +87,6 @@ public:
     }
 
 private:
-    /* struct DocumentContent {
-         int id = 0;
-         vector<string> words;
-     }; */
 
     struct QueryWord {
         string data;
@@ -167,9 +159,9 @@ private:
                 continue;
             }
             matched = word_to_documents_freqs_.at(word);
-
+            const double doc_freq = CalculateIDF(matched.size());
             for (const auto& [id, tf] : matched) {
-                document_to_relevance[id] += tf * CalculateIDF(matched.size());
+                document_to_relevance[id] += tf * doc_freq;
             }
         }
 
@@ -178,7 +170,7 @@ private:
             if (!word_to_documents_freqs_.count(word)) {
                 continue;
             }
-            matched = word_to_documents_freqs_.at(word);
+            const auto& matched = word_to_documents_freqs_.at(word);
 
             for (const auto& [id, _] : matched) {
                 document_to_relevance.erase(id);
@@ -194,28 +186,6 @@ private:
         return matched_documents;
     }
 };
-/*
-   static int MatchDocument(const DocumentContent& content, const Query& query) {
-       if (query.plus_words.empty()) {
-           return 0;
-       }
-       set<string> matched_words;
-       for (const string& word : content.words) {
-           if (query.minus_words.count(word) != 0) {
-               return 0;
-           }
-           if (matched_words.count(word) != 0) {
-               continue;
-           }
-           if (query.plus_words.count(word) != 0) {
-               matched_words.insert(word);
-           }
-       }
-       return static_cast<int>(matched_words.size());
-   } */
-
-
-
 SearchServer CreateSearchServer() {
     SearchServer search_server;
     search_server.SetStopWords(ReadLine());
