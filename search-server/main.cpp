@@ -158,7 +158,7 @@ private:
             if (!word_to_documents_freqs_.count(word)) {
                 continue;
             }
-            matched = word_to_documents_freqs_.at(word);
+            const auto& matched = word_to_documents_freqs_.at(word);
             const double doc_freq = CalculateIDF(matched.size());
             for (const auto& [id, tf] : matched) {
                 document_to_relevance[id] += tf * doc_freq;
