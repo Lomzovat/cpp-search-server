@@ -94,30 +94,48 @@ void TestMatchedDocuments() {
 }
 //Сортировка по релевантности
 void SortByRelevance() {
+
     SearchServer server;
-    server.AddDocument(42, "cat in the city"s, DocumentStatus::ACTUAL, { 1, 2, 3 });
-    server.AddDocument(43, "iguana in the house"s, DocumentStatus::ACTUAL, { 1, 2, 3 });
-
-    {
-        const auto found_docs = server.FindTopDocuments("in the city"s);
-
-        ASSERT_EQUAL(found_docs[0].id, 42);
-    }
+    const int doc_id_1 = 1;
+    const int doc_id_2 = 2;
+    const int doc_id_3 = 3;
+    const string line_1 = "cat with green eyes"s;
+    const string line_2 = "iguana with eyes"s;
+    const string line_3 = "iguana with red eyes"s;
+    const vector<int> ratings = { 1, 1, 1 };
+    server.AddDocument(doc_id_1, line_1, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(doc_id_2, line_2, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(doc_id_3, line_3, DocumentStatus::ACTUAL, ratings);
+    const auto found_docs = server.FindTopDocuments("iguana red eyes "s);
+    ASSERT_EQUAL(found_docs.at(0).id, doc_id_3);
+    ASSERT_EQUAL(found_docs.at(1).id, doc_id_2);
+    ASSERT_EQUAL(found_docs.at(2).id, doc_id_1);
 }
 
 //Вычисление рейтинга
 void CalculateAverageRating() {
     SearchServer server;
-    const vector<int> ratings = { 1, 2, 3 };
-    const int average = (1 + 2 + 3) / 3;
-    server.AddDocument(42, "cat in the city"s, DocumentStatus::ACTUAL, ratings);
 
-    {
-        const auto found_docs = server.FindTopDocuments("cat in"s);
-        ASSERT_EQUAL(found_docs.size(), 1u);
-        ASSERT_EQUAL(found_docs[0].rating, average);
-    }
+    server.SetStopWords("in the"s);
+    server.AddDocument(1, "cat in our small hall"s, DocumentStatus::ACTUAL, { 1, 2, 3 });
+    server.AddDocument(2, "dog in the hall"s, DocumentStatus::ACTUAL, { -1, 4, 6 });
+    server.AddDocument(3, "our dog in the hall"s, DocumentStatus::ACTUAL, { -3, -2, -1 });
+
+    const int average_1 = 2;
+    const int average_2 = 3;
+    const int average_3 = -2;
+
+    const auto found_docs = server.FindTopDocuments("our dog in the hall"s);
+
+    ASSERT_EQUAL(found_docs.at(0).rating, average_3);
+    ASSERT_EQUAL(found_docs.at(1).rating, average_2);
+    ASSERT_EQUAL(found_docs.at(2).rating, average_1);
+
 }
+
+
+
+
 //Фильтрация предикатом
 void SortByPredicate() {
     SearchServer server;
@@ -128,17 +146,37 @@ void SortByPredicate() {
         ASSERT_EQUAL(found_docs[0].id, 42);
     }
 }
+
 //Поиск по статусу
 void TestByStatus() {
-    SearchServer server;
-    server.AddDocument(42, "cat in the city"s, DocumentStatus::ACTUAL, { 1, 2, 3 });
-    server.AddDocument(43, "iguana in the house"s, DocumentStatus::IRRELEVANT, { -1, -2, -3 });
-    const auto found_docs = server.FindTopDocuments("in the"s, DocumentStatus::ACTUAL);
 
-    {
-        ASSERT_EQUAL(found_docs[0].id, 42);
-    }
+    SearchServer server;
+
+    server.AddDocument(42, "parrot in the city"s, DocumentStatus::ACTUAL, { 1, 2, 3 });
+    server.AddDocument(43, "cat in the small hall", DocumentStatus::ACTUAL, { 1, 2, 3 });
+    server.AddDocument(44, "dog in the city"s, DocumentStatus::BANNED, { 1, 2, 3 });
+    server.AddDocument(45, "cat in the dress", DocumentStatus::REMOVED, { 1, 2, 3 });
+    server.AddDocument(46, "iguana in the hat"s, DocumentStatus::ACTUAL, { 1, 2, 3 });
+
+    const auto found_docs = server.FindTopDocuments("cat"s, DocumentStatus::REMOVED);
+    const Document& doc0 = found_docs[0];
+    ASSERT_EQUAL(doc0.id, 45);
 }
+
+void TestCorrectRelevance() {
+    SearchServer server;
+    server.SetStopWords("in the"s);
+
+
+    server.AddDocument(1, "cat in the city"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
+    server.AddDocument(2, "dog in the city"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
+
+    const auto found_docs = server.FindTopDocuments("cat city"s);
+    ASSERT(found_docs.at(0).rating >= 1);
+    ASSERT(found_docs.at(1).rating <= 0.2);
+}
+
+
 
 
 // Функция TestSearchServer является точкой входа для запуска тестов
@@ -151,6 +189,8 @@ void TestSearchServer() {
     CalculateAverageRating();
     SortByPredicate();
     TestByStatus();
+    TestCorrectRelevance();
+
 }
 int main() {
     TestSearchServer();
