@@ -83,14 +83,14 @@ enum class DocumentStatus {
 class SearchServer {
 public:
 
-    map<int, int> index_id;
+   
 
     SearchServer() = default;
 
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-        for (const auto single : stop_words) {
+        for (const auto& single : stop_words) {
             if (!IsValidWord(single)) {
                 throw invalid_argument("Invalid symbols are used"s);
             }
@@ -114,7 +114,7 @@ public:
         if (!IsValidWord(document)) {
             throw invalid_argument("Invalid symbols are used"s);
         }
-        else {
+        
 
             const vector<string> words = SplitIntoWordsNoStop(document);
             const double inv_word_count = 1.0 / words.size();
@@ -122,9 +122,9 @@ public:
                 word_to_document_freqs_[word][document_id] += inv_word_count;
             }
             documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-            index_id.insert({ static_cast<int>(index_id.size()),document_id });
-        }
+            index_id.push_back(document_id);
     }
+    
 
 
     template <typename Predicate>
@@ -163,11 +163,11 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        if ((index > index_id.size()) || (index < 0)) {
+        if ((index > index_id_.size()) || (index < 0)) {
             throw out_of_range("Invalid document id"s);
         }
         else {
-            return index_id.at(index);
+            return index_id_.at(index);
         }
     }
 
@@ -213,7 +213,8 @@ private:
     set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
-
+    
+    vector<int> index_id_;
 
     static bool IsValidWord(const string& word) {
 
