@@ -116,13 +116,13 @@ public:
         }
         
 
-            const vector<string> words = SplitIntoWordsNoStop(document);
-            const double inv_word_count = 1.0 / words.size();
-            for (const string& word : words) {
-                word_to_document_freqs_[word][document_id] += inv_word_count;
-            }
+        const vector<string> words = SplitIntoWordsNoStop(document);
+        const double inv_word_count = 1.0 / words.size();
+        for (const string& word : words) {
+            word_to_document_freqs_[word][document_id] += inv_word_count;
+        }
             documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-            index_id.push_back(document_id);
+            index_id_.push_back(document_id);
     }
     
 
