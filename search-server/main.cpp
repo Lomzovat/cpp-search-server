@@ -339,124 +339,96 @@ void PrintDocument(const Document& document) {
         << "rating = "s << document.rating << " }"s << endl;
 }
 
+template <typename Iterator>
+class IteratorRange
+{
+public:
+    IteratorRange(const Iterator begin, const Iterator end) : begin_(begin), end_(end) {}
+
+    auto begin() const {
+        return begin_;
+    }
+    auto end() const {
+        return end_;
+    }
+    int size() const {
+        return (distance(begin_, end_));
+    }
+
+private:
+    Iterator begin_;
+    Iterator end_;
+};
+
+
+template <typename Iterator>
+class Paginator
+{
+public:
+
+    Paginator(const Iterator begin, const Iterator end, int size)
+        : page_size_(size) {
+        Iterator page_begin = begin;
+        Iterator page_end = begin;
+
+        while (distance(page_end, end) > size) {
+            advance(page_end, size);
+            pages_.push_back(IteratorRange(page_begin, page_end));
+            page_begin = page_end;
+        }
+
+        if (page_begin != end) {
+            pages_.push_back(IteratorRange(page_end, end));
+        }
+    }
+
+    auto begin() const {
+        return pages_.begin();
+    }
+    auto end() const {
+        return pages_.end();
+    }
+    size_t size() const {
+        return pages_.size();
+    }
+
+private:
+    vector<IteratorRange<Iterator>> pages_;
+    int page_size_;
+};
+
+template <typename Container>
+auto Paginate(const Container& c, size_t page_size) {
+    return Paginator(begin(c), end(c), page_size);
+}
+
+
+template<typename Iterator>
+ostream& operator <<(ostream& os, const IteratorRange<Iterator>& page) {
+    for (Iterator it = page.begin(); it != page.end(); ++it) {
+        os << "{ "s
+            << "document_id = "s << it->id << ", "s
+            << "relevance = "s << it->relevance << ", "s
+            << "rating = "s << it->rating << " }"s;
+    }
+    return os;
+}
+
+
+
 int main() {
-    setlocale(LC_ALL, "Russian");
-    SearchServer search_server("и в на"s);
-
-    
-    (void)search_server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
-    (void)search_server.AddDocument(6, "пушистый кост"s, DocumentStatus::ACTUAL, { 99, 2, 7 });
-    try {
-        search_server.AddDocument(6, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, { 1, 2 });
+    SearchServer search_server("and with"s);
+    search_server.AddDocument(1, "funny pet and nasty rat"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
+    search_server.AddDocument(2, "funny pet with curly hair"s, DocumentStatus::ACTUAL, { 1, 2, 3 });
+    search_server.AddDocument(3, "big cat nasty hair"s, DocumentStatus::ACTUAL, { 1, 2, 8 });
+    search_server.AddDocument(4, "big dog cat Vladislav"s, DocumentStatus::ACTUAL, { 1, 3, 2 });
+    search_server.AddDocument(5, "big dog hamster Borya"s, DocumentStatus::ACTUAL, { 1, 1, 1 });
+    const auto search_results = search_server.FindTopDocuments("curly dog"s);
+    int page_size = 2;
+    const auto pages = Paginate(search_results, page_size);
+    // Выводим найденные документы по страницам
+    for (auto page = pages.begin(); page != pages.end(); ++page) {
+        cout << *page << endl;
+        cout << "Page break"s << endl;
     }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-
-    try {
-        search_server.AddDocument(-1, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, { 1, 2 });
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-
-    try {
-        search_server.AddDocument(3, "большой пёс скво\x12рец"s, DocumentStatus::ACTUAL, { 1, 3, 2 });
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-    cout << endl;
-
-    // ==========================================
-
-
-    try {
-        search_server.FindTopDocuments("--пушистый"s);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-
-    try {
-        search_server.FindTopDocuments("кот - пушистый"s);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-
-    try {
-        search_server.FindTopDocuments("кот -\x12"s);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-    cout << endl;
-
-    //==========================================
-
-    try {
-
-        const vector<string> stop_words_vector = { "\5"s, "на"s, ""s,  "и"s };
-        SearchServer search_server2(stop_words_vector);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-
-    try {
-        const set<string> stop_words_set = { "и"s, "в"s, "на" "\x12"s };
-        SearchServer search_server3(stop_words_set);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-    cout << endl;
-
-    //=====================================
-
-    try {
-        search_server.MatchDocument("кот  пушистый"s, -1);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-
-    try {
-        search_server.MatchDocument("кот - "s, 1);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-
-    try {
-        search_server.MatchDocument("кот --пушистый"s, 1);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR : "s << e.what() << endl;
-    }
-
-    try {
-        search_server.MatchDocument("кот -пуши\33стый"s, 1);
-    }
-    catch (const invalid_argument& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-    cout << endl;
-
-    //=============================
-
-    try {
-        search_server.GetDocumentId(15);
-    }
-    catch (const out_of_range& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-    try {
-        search_server.GetDocumentId(-15);
-    }
-    catch (const out_of_range& e) {
-        cout << "ERROR: "s << e.what() << endl;
-    }
-
 }
