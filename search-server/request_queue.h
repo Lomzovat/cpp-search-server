@@ -5,12 +5,18 @@
 
 class RequestQueue {
 public:
-    RequestQueue(const SearchServer& search_server) : search_request(search_server) {}
+    RequestQueue(const SearchServer& search_server) :
+        search_request(search_server) {}
+
     template <typename DocumentPredicate>
-    std::vector<Document> AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate);
-    std::vector<Document> AddFindRequest(const std::string& raw_query, DocumentStatus status);
-    std::vector<Document> AddFindRequest(const std::string& raw_query);
+    std::vector<Document> AddFindRequest(std::string_view raw_query,
+        DocumentPredicate document_predicate);
+    std::vector<Document> AddFindRequest(std::string_view raw_query,
+        DocumentStatus status);
+    std::vector<Document> AddFindRequest(std::string_view raw_query);
+
     int GetNoResultRequests() const;
+
 private:
     struct QueryResult {
         bool query_result;
@@ -21,7 +27,7 @@ private:
 };
 
 template <typename DocumentPredicate>
-std::vector<Document> RequestQueue::AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate) {
+std::vector<Document> RequestQueue::AddFindRequest(std::string_view raw_query, DocumentPredicate document_predicate) {
     std::vector<Document> temp = search_request.FindTopDocuments(raw_query, document_predicate);
 
     QueryResult query;
