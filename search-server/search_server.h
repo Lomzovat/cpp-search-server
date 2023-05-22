@@ -37,12 +37,9 @@ public:
     template <typename DocumentPredicate>
     std::vector<Document> FindTopDocuments(std::string_view raw_query,
         DocumentPredicate document_predicate) const;
-    template <typename DocumentPredicate>
-    std::vector<Document> FindTopDocuments(const std::execution::sequenced_policy&,
-        std::string_view raw_query,
-        DocumentPredicate document_predicate) const;
-    template <typename DocumentPredicate>
-    std::vector<Document> FindTopDocuments(const std::execution::parallel_policy&,
+    
+    template <typename DocumentPredicate, typename ExecutionPolicy>
+    std::vector<Document> FindTopDocuments(ExecutionPolicy& policy,
         std::string_view raw_query,
         DocumentPredicate document_predicate) const;
 
@@ -152,16 +149,16 @@ std::vector<Document> SearchServer::FindTopDocuments(std::string_view raw_query,
         document_predicate);
 }
 
-template <typename DocumentPredicate>
-std::vector<Document> SearchServer::FindTopDocuments(const std::execution::sequenced_policy&,
+template <typename DocumentPredicate, typename ExecutionPolicy>
+std::vector<Document> SearchServer::FindTopDocuments(ExecutionPolicy& policy,
     std::string_view raw_query,
     DocumentPredicate document_predicate) const {
     const auto query = ParseQuery(raw_query);
-    auto matched_documents = FindAllDocuments(std::execution::seq,
+    auto matched_documents = FindAllDocuments(policy,
         query,
         document_predicate);
 
-    sort(std::execution::seq,
+    sort(policy,
         matched_documents.begin(),
         matched_documents.end(),
         [this](const Document& lhs, const Document& rhs) {
@@ -178,31 +175,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::execution::seque
     return matched_documents;
 }
 
-template <typename DocumentPredicate>
-std::vector<Document> SearchServer::FindTopDocuments(const std::execution::parallel_policy&,
-    std::string_view raw_query,
-    DocumentPredicate document_predicate) const {
-    const auto query = ParseQuery(raw_query);
-    auto matched_documents = FindAllDocuments(std::execution::par,
-        query,
-        document_predicate);
 
-    sort(std::execution::par,
-        matched_documents.begin(),
-        matched_documents.end(),
-        [this](const Document& lhs, const Document& rhs) {
-            if (std::abs(lhs.relevance - rhs.relevance) < EPSILON) {
-                return lhs.rating > rhs.rating;
-            }
-            else {
-                return lhs.relevance > rhs.relevance;
-            }
-        });
-    if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
-        matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
-    }
-    return matched_documents;
-}
 
 template <typename DocumentPredicate>
 std::vector<Document> SearchServer::FindAllDocuments(const Query& query,
